@@ -1,0 +1,419 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.xujun.springboot.dao.HistoryDao">
+
+    <insert id="addHistory">
+
+        insert into t_history_data_final(id, workpiece_id, user_id, workpiece_no, workpiece_name, sum_values,
+                                         history_time, not_pass, fault_status)
+        VALUES (UUID_SHORT(), #{workpieceId}, #{userId}, #{workpieceNo}, #{workpieceName}, #{values}, #{historyTime},
+                #{notPass}, #{checkPass})
+    </insert>
+
+
+    <select id="getPieceNo" resultType="org.xujun.springboot.model.MapEntity">
+        select nuts_number                                nutsNumber,
+               concat(workpiece_prefix,
+                      DATE_FORMAT(NOW(), workpiece_time)) dateTime,
+               workpiece_num                              workpieceNum,
+               concat('%0', workpiece_num, 'd')           formatNum,
+               displace_max                               displaceMax,
+               displace_min
+                                                          displaceMin,
+               relay_max                                  relayMax,
+               relay_min                                  relayMin
+        from sys_workpiece_management
+        where id = #{id}
+    </select>
+
+
+    <select id="getHistoryDatas" resultType="org.xujun.springboot.model.MapEntity">
+        select
+        h.user_id userId,
+        CONCAT(h.id) id,
+        DATE_FORMAT(h.history_time,'%Y-%m-%d %H:%i:%s') historyTime,
+        u.login_name name,
+        COUNT(*) nutsNumber,
+        h.workpiece_name workpieceName,
+        h.workpiece_no workpieceNo,
+        case when
+        GROUP_CONCAT(case when not_pass
+        = 0 then null else not_pass end ORDER BY not_pass) is null then '合格'
+        else '不合格' end isPass,
+
+        case when
+        GROUP_CONCAT(case
+        when not_pass = 0 then null else not_pass end ORDER BY not_pass) is null then '合格'
+        else concat('第', GROUP_CONCAT(case
+        when not_pass = 0 then null else not_pass end ORDER BY not_pass) ,'铆钉异常')
+        end errorNum
+
+        from
+        sys_user u
+        inner join
+        t_history_data_final
+        h on u.id = h.user_id
+        inner join sys_workpiece_management w on w.id =
+        h.workpiece_id
+        <where>
+
+            <if test="userId != null and userId != ''">
+                and u.id = #{userId}
+            </if>
+            <if test="workpieceNo != null and workpieceNo != ''">
+                and workpiece_no = #{workpieceNo}
+            </if>
+
+            <if test="beginTime != null and beginTime != ''">
+                and history_time &gt;= #{beginTime}
+            </if>
+            <if test="endTime != null and endTime != ''">
+                and history_time &lt;= #{endTime}
+            </if>
+            <if test="workpieceName != null and workpieceName != ''">
+                and h.workpiece_name = #{workpieceName}
+            </if>
+        </where>
+        GROUP BY workpiece_no,h.user_id
+        <if test="isPass != null and isPass != ''">
+            having isPass = #{isPass}
+        </if>
+        ORDER BY h.history_time desc
+    </select>
+
+
+    <select id="getHistoryDetails" resultType="org.xujun.springboot.model.MapEntity">
+        select
+        h.user_id userId,
+        CONCAT(h.id) id,
+        DATE_FORMAT(h.history_time,'%Y-%m-%d %H:%i:%s') historyTime,
+        u.login_name name,
+       @row_number:= if(@prev_workpiece = h.workpiece_no,@row_number +1,1) number,
+        @prev_workpiece := workpiece_no o,
+        h.workpiece_name workpieceName,
+        h.workpiece_no workpieceNo,w.nuts_number nutsNumber,
+        case when not_pass = 0 then '合格' when not_pass &gt; 0 then '不合格' end isPass,
+        case fault_status when 1 then '拉力不足'
+        when 2 then '拉力太大'
+        when 3 then '行程不足'
+        when 4 then '行程过大'
+        when 5 then '断轴'
+        when 6 then '未装铆钉'
+        else '' end errorNum,
+        sum_values,
+        (select max(history_time) from t_history_data_final  where workpiece_no = h.workpiece_no limit 1) time
+        from
+        sys_user u
+        inner join
+        t_history_data_final
+        h on u.id = h.user_id
+        inner join sys_workpiece_management w on w.id = h.workpiece_id ,( select @row_number:= 1,@prev_workpiece := null  ) t
+        <where>
+            <if test="userId != null and userId != ''">
+                and u.id = #{userId}
+            </if>
+            <if test="workpieceNo != null and workpieceNo != ''">
+                and workpiece_no = #{workpieceNo}
+            </if>
+            <if test="beginTime != null and beginTime != ''">
+                and history_time &gt;= #{beginTime}
+            </if>
+            <if test="endTime != null and endTime != ''">
+                and history_time &lt;= #{endTime}
+            </if>
+            <if test="workpieceName != null and workpieceName != ''">
+                and h.workpiece_name = #{workpieceName}
+            </if>
+        </where>
+        ORDER BY  time desc , h.history_time
+    </select>
+
+
+    <select id="getHistoryDataByWorkpieceNo" resultType="org.xujun.springboot.model.MapEntity">
+        select concat(h.id)                                   id,
+               DATE_FORMAT(h.history_time, '%Y-%m-%d
+		%H:%i:%s') historyTime,
+               case when not_pass > 0 then 1 else 0 end       errorNum,
+               h.fault_status                                 faultStatus,
+               h.sum_values
+                                                              sumValues
+        from t_history_data_final h
+        where workpiece_no = #{workpieceNo}
+        order by h.history_time
+    </select>
+
+
+    <select id="getHistoryDataById" resultType="org.xujun.springboot.model.MapEntity">
+        select h.sum_values                             sumValues,
+               w.displace_max,
+               w.displace_min,
+               w.relay_max,
+               w.relay_min,
+               case when not_pass > 0 then 1 else 0 end errorNum
+
+        from t_history_data_final h
+                 inner join
+             sys_user u on u.id = h.user_id
+                 inner join
+             sys_workpiece_management w on w.id = h.workpiece_id
+        where h.id = #{id}
+    </select>
+
+
+    <delete id="deleteHistoryById">
+        delete
+        from t_history_data_final
+        where workpiece_no = #{workpieceNo}
+          and user_id = #{userId}
+    </delete>
+
+
+    <!-- ========== -->
+    <update id="updateUserPiece">
+        replace
+        into sys_user_workpiece(user_id,workpiece_id,count,workpiece_count,nuts_number,time) values
+		(
+        #{userId},
+        #{workpieceId},
+        #{count},
+        #{workpieceCount},
+        #{nutsNumber},
+        now()
+        );
+        update sys_user_workpiece
+        set workpiece_count = #{workpieceCount}
+        where workpiece_id = #{workpieceId}
+
+    </update>
+
+
+    <select id="getCountById" resultType="org.xujun.springboot.model.MapEntity">
+        select
+            w.*,
+            IFNULL( sw.count, 0 ) count,
+	IFNULL( sw.nuts_number, 0 ) nowNumber,
+case
+
+		when sw.workpieceCount is null then
+		(
+		select
+			IFNULL( max( workpiece_count ), 0 )
+		from
+			sys_user_workpiece
+		where
+			workpiece_id = 1
+		and DATE_FORMAT( time, '%Y-%m-%d' ) = CURDATE()) else sw.workpieceCount
+        end workpieceCount,
+	co.coefficient,
+	co.input_config inputConfig,
+	p.is_print isPrint,
+	p.device_no deviceNo,
+	o.*
+from
+	(
+	select
+		id,
+		nuts_number nutsNumber,
+		workpiece_name workpieceName,
+		workpiece_num workpieceNum,
+		displace_max displaceMax,
+		displace_min displaceMin,
+		relay_max relayMax,
+		relay_min relayMin,
+		status workpieceStatus,
+		concat( '%0', workpiece_num, 'd' ) formatNum,
+		concat(
+			workpiece_prefix,
+		DATE_FORMAT( NOW(), workpiece_time )) dateTime
+	from
+		sys_workpiece_management
+	where
+		id = #{workpieceId}
+
+        ) w
+        left join (
+        select
+        workpiece_id,
+        nuts_number,
+        count,
+        workpiece_count workpieceCount
+        from
+        sys_user_workpiece sw
+        where
+        user_id = #{userId}
+        and workpiece_id = #{workpieceId}
+        and DATE_FORMAT( time, '%Y-%m-%d' ) = CURDATE()
+        ) sw on w.id = sw.workpiece_id
+        join sys_operation o
+        join t_config co
+        join t_print_config p
+    </select>
+
+    <!-- 员工效率 -->
+    <select id="getRatio" resultType="java.lang.String">
+        select
+        IFNULL(ROUND(SUM(c)/(sum(dif_second)/60),2),0) ratio
+        from (
+
+        select
+        array(GROUP_CONCAT(h.history_time),COUNT(*))
+        dif_second,
+        COUNT(*) c
+
+        from
+        t_history_data_final h
+
+        where 1=1
+
+        <if test="state == 1 and state != ''">
+            and h.user_id = #{userId} and history_time &lt; CURDATE()
+            GROUP BY h.workpiece_no
+        </if>
+
+        <if test="state == 2 and state != ''">
+            and h.user_id = #{userId} and history_time &gt; CURDATE()
+            GROUP BY h.workpiece_no
+        </if>
+        <if test="state == 3 and state != ''">
+            and history_time &lt; CURDATE()
+            GROUP BY h.user_id,h.workpiece_no
+        </if>
+        ) m where dif_second != 0
+    </select>
+
+
+    <update id="createHistoryEvent">
+        DROP
+        EVENT IF EXISTS history_event;
+
+		CREATE
+        event IF NOT EXISTS history_event ON SCHEDULE EVERY 1 DAY
+		ON COMPLETION PRESERVE
+		DO
+        DELETE
+        from t_history_data_final
+        WHERE history_time &lt; DATE_SUB(now(), INTERVAL #{day} DAY)
+    </update>
+
+    <update id="updataTaintainAddOne">
+        update t_maintain
+        set mandrel_real = mandrel_real + 1,
+            hydraulic_oil_real
+                         =hydraulic_oil_real + 1,
+            repair_real  = repair_real + 1
+    </update>
+
+
+    <select id="selectMaintainConfig" resultType="org.xujun.springboot.model.MapEntity">
+        select case when mandrel &lt;= mandrel_real then 1 else 0 end
+                                                                       isMandrel,
+               case when mandrel = mandrel_real then NOW() else '' end isMandrelTime,
+               case
+                   when hydraulic_oil
+                       &lt;= hydraulic_oil_real then 1
+                   else 0 end                                          isHydraulicOilReal,
+               case
+                   when hydraulic_oil = hydraulic_oil_real then NOW()
+                   else '' end                                         isHydraulicOilRealTime,
+
+               case when repair &lt;= repair_real then 1 else 0 end    isRepairReal,
+               case
+                   when
+                       repair = repair_real then 1
+                   else '' end                                         isRepairRealTime
+        from t_maintain
+    </select>
+
+    <update id="insertLog">
+
+        insert into t_alarm_log(real_log_id, operation, fault_time, release_time)
+        select a.id  real_log_id,
+               '解除报警'
+                     operation,
+               a.fault_time,
+               now() release_time
+        from t_alarm_real_log a
+        where a.id = #{id};
+
+        update t_alarm_real_log
+        set state         = 0,
+            relieve_state = 0
+        where id = #{id};
+    </update>
+
+
+    <update id="updateRealLog">
+        update t_alarm_real_log set state = #{state}
+        <if test="relieveState != null and relieveState != ''">
+            ,relieve_state = #{relieveState}
+        </if>
+
+        <if test="time != null and time != ''">
+            ,fault_time = now()
+        </if>
+        where id in (${id})
+    </update>
+
+
+    <select id="selectIsOpen" resultType="java.lang.String">
+        select case
+                   when di1 = 0 and di2 = 0 then 1
+                   when di1 = 1 and di2 = 0 and
+                        real_di1 = 1 then 1
+                   when di1 = 0 and di2 = 1 and
+                        real_di2 = 1 then 1
+                   when di1 = 1 and di2 = 1 and real_di1 = 1 and
+                        real_di2 = 1 then 1
+                   else 0 end isOpen
+        from t_config
+    </select>
+
+    <update id="updateRealTcongfig">
+
+        update t_config set
+
+        <if test="realDi1 != null and realDi1 != ''">
+            real_di1 = #{realDi1}
+        </if>
+
+        <if test="realDi2 != null and realDi2 != ''">
+            real_di2 = #{realDi2}
+        </if>
+
+
+    </update>
+
+
+    <select id="selectAlarmState" resultType="org.xujun.springboot.model.MapEntity">
+
+        SELECT *,
+               case
+                   when realRelieveState = 1 and realRelieveState = relieveState and state = 0 then 1
+                   when realRelieveState = 0 then 0
+
+                   else 2 end status
+
+        from (select a.id,
+                     a.state,
+                     a.relieve_state relieveState,
+                     m.realRelieveState
+              from t_alarm_real_log a
+                       inner join
+                   (select 3                                                      id,
+                           case when mandrel_real &gt;= mandrel then 1 else 0 end realRelieveState,
+                           case when mandrel_real = mandrel then 1 else '' end time
+                    from t_maintain
+                    UNION all
+                    select 4 id,
+                        case when hydraulic_oil_real &gt;= hydraulic_oil then 1 else 0 end realRelieveState,
+                        case when hydraulic_oil_real = hydraulic_oil then 1 else '' end time
+                    from t_maintain
+                    UNION all
+                    select 5 id,
+                        case when repair_real &gt;= repair then 1 else 0 end realRelieveState,
+                        case when repair_real = repair then 1 else '' end time
+                    from t_maintain) m on m.id = a.id) n
+    </select>
+
+
+</mapper>

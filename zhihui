@@ -1,0 +1,18 @@
+2022-11-18 09:52:02.116  INFO 10676 --- [main] o.x.springboot.SpringbootApplication     : Starting SpringbootApplication on long with PID 10676 (D:\springboot\target\classes started by admin in D:\springboot)
+2022-11-18 09:52:02.123  INFO 10676 --- [main] o.x.springboot.SpringbootApplication     : No active profile set, falling back to default profiles: default
+2022-11-18 09:52:03.839  INFO 10676 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat initialized with port(s): 8090 (http)
+2022-11-18 09:52:03.848  INFO 10676 --- [main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2022-11-18 09:52:03.849  INFO 10676 --- [main] org.apache.catalina.core.StandardEngine  : Starting Servlet engine: [Apache Tomcat/9.0.29]
+2022-11-18 09:52:03.917  INFO 10676 --- [main] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring embedded WebApplicationContext
+2022-11-18 09:52:03.917  INFO 10676 --- [main] o.s.web.context.ContextLoader            : Root WebApplicationContext: initialization completed in 1747 ms
+2022-11-18 09:52:04.456  INFO 10676 --- [main] o.xujun.springboot.task.ExecutorConfig   : start asyncServiceExecutor
+2022-11-18 09:52:04.460  INFO 10676 --- [main] o.x.s.t.VisiableThreadPoolTaskExecutor   : Initializing ExecutorService
+2022-11-18 09:52:04.463  INFO 10676 --- [main] o.x.s.t.VisiableThreadPoolTaskExecutor   : Initializing ExecutorService 'asyncServiceExecutor'
+2022-11-18 09:52:04.741  INFO 10676 --- [main] o.s.b.a.w.s.WelcomePageHandlerMapping    : Adding welcome page template: index
+2022-11-18 09:52:05.028  INFO 10676 --- [main] o.s.b.w.embedded.tomcat.TomcatWebServer  : Tomcat started on port(s): 8090 (http) with context path ''
+2022-11-18 09:52:05.031  INFO 10676 --- [main] o.x.springboot.SpringbootApplication     : Started SpringbootApplication in 3.378 seconds (JVM running for 3.772)
+2022-11-18 09:52:05.714  INFO 10676 --- [Thread-2] com.zaxxer.hikari.HikariDataSource       : hikariPool - Starting...
+2022-11-18 09:52:05.854  INFO 10676 --- [Thread-2] com.zaxxer.hikari.HikariDataSource       : hikariPool - Start completed.
+2022-11-18 09:52:05.860 DEBUG 10676 --- [Thread-2] o.x.s.dao.HistoryDao.getPieceNo          : ==>  Preparing: select nuts_number nutsNumber, concat(workpiece_prefix, DATE_FORMAT(NOW(),workpiece_time)) dateTime, workpiece_num workpieceNum, displace_max displaceMax, displace_min displaceMin, relay_max relayMax, relay_min relayMin from sys_workpiece_management where id = 1 
+2022-11-18 09:52:05.873 DEBUG 10676 --- [Thread-2] o.x.s.dao.HistoryDao.getPieceNo          : ==> Parameters: 
+2022-11-18 09:52:05.886 DEBUG 10676 --- [Thread-2] o.x.s.dao.HistoryDao.getPieceNo          : <==      Total: 1

@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.xujun.springboot.dao.AlarmDao">
+
+
+
+	<select id="selectRealLog" resultType="org.xujun.springboot.model.MapEntity">
+		select id,name,DATE_FORMAT(fault_time,'%Y-%m-%d %H:%i:%s') faultTime,
+		state from t_alarm_real_log where relieve_state = 1
+	</select>
+
+
+	<select id="selectAlarmLog" resultType="org.xujun.springboot.model.MapEntity">
+		select a.id,
+		DATE_FORMAT(a.fault_time,'%Y-%m-%d %H:%i:%s') faultTime,
+		DATE_FORMAT(a.release_time,'%Y-%m-%d %H:%i:%s') releaseTime,
+		r.name
+		from t_alarm_log a
+		left join t_alarm_real_log r on
+		r.id = a.real_log_id
+		order by a.release_time desc
+	</select>
+
+
+	<select id="selectHistoryByWorkpieceNo" resultType="org.xujun.springboot.model.MapEntity">
+          select * from t_history_data_final where workpiece_no = #{workpieceNo} limit 1
+	</select>
+
+
+	<update id="modifyCoefficient">
+		update t_config set coefficient = #{coefficient}
+	</update>
+
+
+
+
+
+</mapper>

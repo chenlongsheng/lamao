@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="org.xujun.springboot.dao.ProductionDao">
+
+
+    <select id="selectProduction" resultType="org.xujun.springboot.model.MapEntity">
+
+        select
+        * ,
+        sum(secondTime) totalTime,
+        ROUND(sum(secondTime)/3600,2) totalHour,
+        sum(count) totalCount,
+        ROUND(sum(secondTime)/sum(count),2) efficiency,
+        concat((sum(count) - sum(notCount))*100/sum(count),'%') goodEffic,
+        sum(count) - sum(notCount) goodCount,
+        sum(notCount) notPassCount
+        from (
+        select
+        h.user_id,
+        w.id,
+        h.history_time,
+        u.classes,
+        w.workpiece_name,
+        workpiece_num,
+        u.login_name,
+        1 count,
+        case when max(not_pass) > 0 then 1 else 0
+        end         notCount,
+        GROUP_CONCAT(h.id) ids,
+
+        DATE_FORMAT(h.history_time,'%Y-%m-%d') hourTime,
+        array(GROUP_CONCAT(history_time order
+        by
+        history_time),
+        COUNT(*) ) secondTime
+        from sys_workpiece_management w inner join
+        t_history_data_final h on
+        h.workpiece_id
+        = w.id
+        inner
+        join sys_user u on u.id = h.user_id
+        <where>
+
+            <if test="userId != null and userId != ''">
+                and h.user_id = #{userId}
+            </if>
+            <if test="classes != null and classes != ''">
+                and u.classes = #{classes}
+            </if>
+
+            <if test="beginTime != null and beginTime != ''">
+                and h.history_time &gt;= #{beginTime}
+            </if>
+            <if test="endTime != null and endTime != ''">
+                and h.history_time &lt;= #{endTime}
+            </if>
+            <if test="workpieceId != null and workpieceId != ''">
+                and w.id = #{workpieceId}
+            </if>
+        </where>
+        GROUP BY h.user_id,h.workpiece_no
+        ) m GROUP BY m.user_id,hourTime
+        order by m.hourTime desc
+
+    </select>
+
+    <update id="deleteHistoryByIds">
+
+        delete
+        from t_history_data_final
+        where id in (${ids})
+
+    </update>
+
+    <select id="selectFaults" resultType="org.xujun.springboot.model.MapEntity">
+        select
+        CONCAT(h.id) id,
+        GROUP_CONCAT(h.id) ids,
+        GROUP_CONCAT(h.not_pass,'_',fault_status) fault_status,
+        GROUP_CONCAT(CONCAT(
+        (case
+        fault_status when 1 then '拉力不足'
+        when 2 then '拉力过大'
+        when 3 then '行程不足'
+        when 4 then '行程过足'
+        when 5 then '芯轴断'
+        when 6 then '未装铆钉'
+        else '' end ),':',h.not_pass) ORDER BY history_time
+        ) fault_name,
+        DATE_FORMAT(h.history_time,'%Y-%m-%d %H:%i:%s') time,
+        h.workpiece_no,
+        u.classes,nuts_number,
+        w.workpiece_name,
+        u.login_name
+
+        from t_history_data_final h
+        inner
+        join sys_workpiece_management w on w.id = workpiece_id
+        inner join sys_user u on u.id = user_id
+
+
+        <where>
+            h.not_pass > 0 and fault_status > 0
+            <if test="userId != null and userId != ''">
+                and h.user_id = #{userId}
+            </if>
+            <if test="classes != null and classes != ''">
+                and u.classes = #{classes}
+            </if>
+
+            <if test="beginTime != null and beginTime != ''">
+                and h.history_time &gt;= #{beginTime}
+            </if>
+            <if test="endTime != null and endTime != ''">
+                and h.history_time &lt;= #{endTime}
+            </if>
+            <if test="workpieceId != null and workpieceId != ''">
+                and w.id = #{workpieceId}
+            </if>
+        </where>
+        GROUP BY h.workpiece_no
+        order by h.history_time desc
+    </select>
+
+
+    <select id="rankingRatios" resultType="org.xujun.springboot.model.MapEntity">
+        select user_id,
+               m.login_name,
+               SUM(secondTime) totalSeconds,
+               sum(c) count,
+		round(sum(c)*60/SUM(secondTime),2) ratioMinutes
+        from (
+            select h.user_id, u.login_name,
+            array(GROUP_CONCAT(history_time
+            order by history_time),
+            COUNT (*) ) secondTime, COUNT (*) c
+            from t_history_data_final h
+            left join sys_user u on u.id =
+            h.user_id
+            GROUP BY user_id, workpiece_no
+            ) m
+        GROUP BY m.user_id
+        ORDER BY ratioMinutes desc
+    </select>
+
+</mapper>
